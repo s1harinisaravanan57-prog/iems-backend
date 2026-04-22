@@ -395,7 +395,16 @@ import { toast, statusBadge, resultBadge, openModal, closeModal, getUser, logout
 
 // ── Auth guard ────────────────────────────────────────────────────────
 const user = getUser();
-if (!user || user.role !== 'ADMIN') { window.location.href = '../index.html'; }
+console.log('[Dashboard Auth Guard]', 'User:', user);
+
+if (!user) {
+  console.error('[Dashboard Auth Guard] No user found in localStorage');
+  window.location.href = '/index.html';
+} else if (user.role !== 'ADMIN') {
+  console.error('[Dashboard Auth Guard] User role is', user.role, 'but ADMIN required');
+  window.location.href = '/index.html';
+}
+
 document.getElementById('sidebarName').textContent = user?.name || 'Admin';
 document.getElementById('sidebarAvatar').textContent = (user?.name?.[0] || 'A').toUpperCase();
 document.getElementById('logoutBtn').addEventListener('click', logout);

@@ -145,11 +145,15 @@
           document.getElementById('emailInput').value,
           document.getElementById('passInput').value
         );
+        console.log('[Login Success]', 'User:', res.user.email, 'Role:', res.user.role);
         localStorage.setItem('iems_token', res.token);
         setUser(res.user);
-        window.location.href = res.user.role === 'ADMIN' ? 'pages/admin-dashboard.html' : 'pages/technician.html';
+        const redirectUrl = res.user.role === 'ADMIN' ? '/pages/admin-dashboard.html' : '/pages/technician.html';
+        console.log('[Login] Redirecting to:', redirectUrl);
+        window.location.href = redirectUrl;
       } catch (err) {
-        errEl.textContent = err.message;
+        console.error('[Login Error]', err.message);
+        errEl.textContent = err.message || 'Login failed. Please try again.';
         errEl.classList.remove('hidden');
         btn.disabled = false;
         btn.textContent = 'Sign in';
@@ -158,11 +162,21 @@
 
     // Already logged in?
     const token = localStorage.getItem('iems_token');
-    if (token) {
-      api.me().then(r => {
-        setUser(r.data);
-        window.location.href = r.data.role === 'ADMIN' ? 'pages/admin-dashboard.html' : 'pages/technician.html';
-      }).catch(() => {});
+    const savedUser = localStorage.getItem('iems_user');
+    if (token && savedUser) {
+      try {
+        const user = JSON.parse(savedUser);
+        console.log('[Auto-login]', 'User found:', user.email, user.role);
+        const redirectUrl = user.role === 'ADMIN' 
+          ? '/pages/admin-dashboard.html' 
+          : '/pages/technician.html';
+        console.log('[Auto-login] Redirecting to:', redirectUrl);
+        window.location.href = redirectUrl;
+      } catch (e) {
+        console.error('[Auto-login] Error:', e);
+        localStorage.removeItem('iems_token');
+        localStorage.removeItem('iems_user');
+      }
     }
   </script>
 </body>

@@ -251,7 +251,16 @@ import { toast, statusBadge, resultBadge, getUser, logout } from '../js/ui.js';
 
 // ── Auth ────────────────────────────────────────────────────────────
 const user = getUser();
-if (!user || user.role !== 'TECHNICIAN') { window.location.href = '../index.html'; }
+console.log('[Technician Auth Guard]', 'User:', user);
+
+if (!user) {
+  console.error('[Technician Auth Guard] No user found in localStorage');
+  window.location.href = '/index.html';
+} else if (user.role !== 'TECHNICIAN') {
+  console.error('[Technician Auth Guard] User role is', user.role, 'but TECHNICIAN required');
+  window.location.href = '/index.html';
+}
+
 document.getElementById('techName').textContent = user?.name || 'Technician';
 document.getElementById('logoutBtn').addEventListener('click', logout);
 document.getElementById('backBtn').addEventListener('click', showList);

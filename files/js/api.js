@@ -1,5 +1,7 @@
 // js/api.js — central API layer, all fetch calls live here
-const BASE = '/api/v1';
+// Auto-detect API base URL (works for both local dev and cloud deployment)
+const API_HOST = typeof window !== 'undefined' ? window.location.origin : '';
+const BASE = `${API_HOST}/api/v1`;
 
 function getToken() { return localStorage.getItem('iems_token'); }
 
@@ -7,13 +9,19 @@ async function request(method, path, body = null) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${BASE}${path}`, {
-    method, headers,
-    body: body ? JSON.stringify(body) : null,
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
-  return data;
+  
+  try {
+    const res = await fetch(`${BASE}${path}`, {
+      method, headers,
+      body: body ? JSON.stringify(body) : null,
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.message || `HTTP ${res.status}`);
+    return data;
+  } catch (err) {
+    console.error(`[API] ${method} ${path}:`, err.message);
+    throw err;
+  }
 }
 
 export const api = {
