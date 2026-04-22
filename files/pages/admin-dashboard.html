@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>IEMS — Dashboard</title>
+  <link rel="stylesheet" href="../css/styles.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    /* ── Layout shell ─── */
+    .shell { display:flex; height:100vh; overflow:hidden; }
+
+    /* ── Sidebar ─── */
+    .sidebar {
+      width:218px; flex-shrink:0;
+      background:var(--bg-900); border-right:1px solid var(--border);
+      display:flex; flex-direction:column; padding:18px 10px;
+      position:relative;
+    }
+    .sidebar::after {
+      content:''; position:absolute; top:0; right:0; bottom:0; width:1px;
+      background:linear-gradient(to bottom, transparent, rgba(59,130,246,.2), transparent);
+    }
+    .logo-row { display:flex; align-items:center; gap:10px; padding:4px 10px; margin-bottom:26px; }
+    .logo-icon { width:30px; height:30px; border-radius:8px; background:var(--accent-dim); border:1px solid rgba(59,130,246,.2); display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+    .logo-text { font-family:var(--font-mono); font-size:15px; font-weight:500; letter-spacing:.1em; }
+
+    nav { display:flex; flex-direction:column; gap:2px; flex:1; }
+    .nav-link {
+      display:flex; align-items:center; gap:10px;
+      padding:9px 12px; border-radius:var(--r-md);
+      font-size:13.5px; color:var(--txt-3);
+      transition:all .15s; position:relative;
+    }
+    .nav-link:hover { color:var(--txt-2); background:rgba(255,255,255,.03); }
+    .nav-link.active {
+      color:var(--accent); background:var(--accent-dim);
+    }
+    .nav-link svg { flex-shrink:0; opacity:.7; }
+    .nav-link.active svg { opacity:1; }
+
+    .nav-label { font-size:10px; font-weight:600; letter-spacing:.1em; color:var(--txt-4); text-transform:uppercase; padding:10px 12px 4px; margin-top:6px; }
+
+    .user-row {
+      display:flex; align-items:center; gap:10px; padding:10px 8px;
+      border-top:1px solid var(--border); margin-top:auto;
+    }
+    .avatar {
+      width:30px; height:30px; border-radius:50%; flex-shrink:0;
+      background:var(--accent-dim); border:1px solid rgba(59,130,246,.3);
+      display:flex; align-items:center; justify-content:center;
+      font-size:12px; font-weight:700; color:var(--accent);
+    }
+    .user-name { font-size:13px; font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .user-role { font-size:10.5px; color:var(--txt-3); text-transform:uppercase; letter-spacing:.06em; }
+    .logout-btn { padding:5px; color:var(--txt-3); border-radius:var(--r-sm); transition:color .15s; background:none; }
+    .logout-btn:hover { color:var(--critical); }
+
+    /* ── Main ─── */
+    .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+    .topbar {
+      height:54px; border-bottom:1px solid var(--border);
+      display:flex; align-items:center; gap:12px; padding:0 24px;
+      background:var(--bg-900); flex-shrink:0;
+    }
+    .search-input {
+      flex:1; max-width:340px; background:var(--bg-700);
+      border:1px solid var(--border); border-radius:var(--r-md);
+      padding:7px 13px; color:var(--txt-1); font-size:13px; outline:none;
+    }
+    .notif-btn {
+      position:relative; padding:8px; border-radius:var(--r-md);
+      background:var(--bg-700); border:1px solid var(--border); color:var(--txt-2);
+    }
+    .notif-dot {
+      position:absolute; top:6px; right:6px; width:7px; height:7px; border-radius:50%;
+      background:var(--critical); border:1.5px solid var(--bg-900);
+      animation:pulse 2.5s ease-in-out infinite;
+    }
+    .content { flex:1; overflow-y:auto; padding:26px; display:flex; flex-direction:column; gap:22px; }
+
+    /* ── Panels: show/hide ─── */
+    .panel { display:none; flex-direction:column; gap:22px; }
+    .panel.active { display:flex; }
+
+    /* ── KPI cards ─── */
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:13px; }
+    .kpi-card {
+      background:var(--bg-800); border:1px solid var(--border);
+      border-radius:var(--r-lg); padding:18px 20px; position:relative; overflow:hidden;
+      animation:fadeUp .4s var(--ease-out) both;
+      transition:border-color .2s, transform .2s;
+    }
+    .kpi-card:hover { transform:translateY(-2px); }
+    .kpi-top-bar { position:absolute; top:0; left:0; right:0; height:3px; }
+    .kpi-label { font-size:11px; font-weight:500; color:var(--txt-3); text-transform:uppercase; letter-spacing:.07em; margin-bottom:10px; }
+    .kpi-value { font-family:var(--font-mono); font-size:34px; font-weight:500; line-height:1; }
+    .kpi-sub   { font-size:11.5px; color:var(--txt-3); margin-top:6px; }
+
+    /* ── Chart card ─── */
+    .chart-card { background:var(--bg-800); border:1px solid var(--border); border-radius:var(--r-lg); padding:20px 22px; }
+    .chart-header { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:16px; }
+    .chart-title { font-family:var(--font-display); font-size:14px; font-weight:600; }
+    .chart-sub   { font-size:12px; color:var(--txt-3); }
+    .chart-legend { display:flex; gap:14px; margin-top:10px; justify-content:flex-end; }
+    .legend-item { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--txt-3); }
+    .legend-dot  { width:8px; height:8px; border-radius:50%; }
+
+    /* ── Mid row ─── */
+    .mid-row { display:flex; gap:16px; }
+    .mid-row .chart-card:first-child { flex:1; min-width:0; }
+    .pending-list { flex:0 0 300px; }
+    .pending-item { display:flex; align-items:center; gap:10px; padding:10px 0; border-bottom:1px solid var(--border); }
+    .pending-name { font-size:13px; font-weight:500; color:var(--txt-1); }
+    .pending-desc { font-size:11.5px; color:var(--txt-3); margin-top:2px; }
+    .pending-date { font-family:var(--font-mono); font-size:11px; color:var(--txt-3); flex-shrink:0; }
+
+    /* ── Table card ─── */
+    .table-card { background:var(--bg-800); border:1px solid var(--border); border-radius:var(--r-lg); overflow:hidden; }
+    .table-card-header { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
+
+    /* ── Pill filter ─── */
+    .pill-bar { display:flex; gap:8px; flex-wrap:wrap; }
+    .pill {
+      padding:5px 14px; border-radius:20px; font-size:12px; font-weight:500;
+      border:1px solid var(--border); background:var(--bg-700); color:var(--txt-3);
+      cursor:pointer; transition:all .15s;
+    }
+    .pill.active { background:var(--accent-dim); border-color:rgba(59,130,246,.35); color:var(--accent); }
+
+    /* ── Action row btns ─── */
+    .action-row { display:flex; gap:6px; }
+
+    @media (max-width:900px) {
+      .sidebar { width:60px; }
+      .nav-link span, .logo-text, .user-name, .user-role, .nav-label { display:none; }
+      .mid-row { flex-direction:column; }
+      .pending-list { flex:none; }
+    }
+  </style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo-row">
+      <div class="logo-icon">
+        <svg width="16" height="16" viewBox="0 0 20 20" fill="none">
+          <path d="M3 10l4-4 4 4 4-4" stroke="#3b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M3 15l4-4 4 4 4-4" stroke="#3b82f6" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/>
+        </svg>
+      </div>
+      <span class="logo-text">IEMS</span>
+    </div>
+
+    <nav>
+      <span class="nav-label">Overview</span>
+      <a href="#" class="nav-link active" data-panel="dash">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        <span>Dashboard</span>
+      </a>
+      <span class="nav-label">Manage</span>
+      <a href="#" class="nav-link" data-panel="equipment">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+        <span>Equipment</span>
+      </a>
+      <a href="#" class="nav-link" data-panel="maintenance">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+        <span>Maintenance</span>
+      </a>
+      <a href="#" class="nav-link" data-panel="workers">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
+        <span>Workers</span>
+      </a>
+      <a href="#" class="nav-link" data-panel="reports">
+        <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        <span>Reports</span>
+      </a>
+    </nav>
+
+    <div class="user-row">
+      <div class="avatar" id="sidebarAvatar">A</div>
+      <div style="flex:1;min-width:0">
+        <div class="user-name" id="sidebarName">Admin</div>
+        <div class="user-role">ADMIN</div>
+      </div>
+      <button class="logout-btn" id="logoutBtn" title="Logout">
+        <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <!-- Topbar -->
+    <header class="topbar">
+      <input class="search-input" placeholder="Search equipment, maintenance…" id="globalSearch"/>
+      <div style="margin-left:auto;display:flex;gap:8px;align-items:center">
+        <button class="notif-btn" id="notifBtn">
+          <svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <div class="notif-dot" id="notifDot" style="display:none"></div>
+        </button>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- ═══════════════ DASHBOARD PANEL ═══════════════ -->
+      <div class="panel active" id="panel-dash">
+        <div>
+          <h1 class="section-title">Global Dashboard</h1>
+          <p class="section-sub">Factory floor overview</p>
+        </div>
+        <div class="kpi-grid" id="kpiGrid"><div class="loading-center"><div class="spinner"></div></div></div>
+        <div class="mid-row">
+          <div class="chart-card" style="flex:1">
+            <div class="chart-header">
+              <span class="chart-title">Fleet health trend</span>
+              <span class="chart-sub">7-day overview</span>
+            </div>
+            <canvas id="trendChart" height="80"></canvas>
+            <div class="chart-legend">
+              <div class="legend-item"><div class="legend-dot" style="background:#10b981"></div>Optimal</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#f59e0b"></div>Warning</div>
+              <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Critical</div>
+            </div>
+          </div>
+          <div class="chart-card pending-list">
+            <div class="chart-header">
+              <span class="chart-title">Pending maintenance</span>
+            </div>
+            <div id="pendingList"><div class="spinner" style="margin:0 auto"></div></div>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-card-header">
+            <span class="chart-title">Machine fleet</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Status</th><th>Added</th></tr></thead>
+              <tbody id="dashTable"><tr><td colspan="5" class="empty-state"><div class="spinner" style="margin:0 auto;display:block"></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ EQUIPMENT PANEL ═══════════════ -->
+      <div class="panel" id="panel-equipment">
+        <div class="flex-between">
+          <div><h1 class="section-title">Equipment</h1><p class="section-sub" id="eqCount">Loading…</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-icon" id="eqRefreshBtn" title="Refresh">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+            <button class="btn btn-primary" id="addEqBtn">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 4v16m8-8H4"/></svg>
+              Add Equipment
+            </button>
+          </div>
+        </div>
+        <input class="input" style="max-width:320px" placeholder="Filter by name, type, location…" id="eqFilter"/>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Type</th><th>Location</th><th>Status</th><th>Created</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody id="eqTableBody"><tr><td colspan="6" class="empty-state"><div class="spinner" style="margin:0 auto;display:block"></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ MAINTENANCE PANEL ═══════════════ -->
+      <div class="panel" id="panel-maintenance">
+        <div class="flex-between">
+          <div><h1 class="section-title">Maintenance</h1><p class="section-sub" id="mtCount">Loading…</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-icon" id="mtRefreshBtn" title="Refresh">
+              <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+            </button>
+            <button class="btn btn-primary" id="addMtBtn">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 4v16m8-8H4"/></svg>
+              Log Maintenance
+            </button>
+          </div>
+        </div>
+        <div class="pill-bar" id="resultFilter">
+          <div class="pill active" data-filter="ALL">All</div>
+          <div class="pill" data-filter="PENDING">Pending</div>
+          <div class="pill" data-filter="DONE">Done</div>
+          <div class="pill" data-filter="ESCALATED">Escalated</div>
+        </div>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Equipment</th><th>Description</th><th>Scheduled</th><th>Worker</th><th>Result</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody id="mtTableBody"><tr><td colspan="6" class="empty-state"><div class="spinner" style="margin:0 auto;display:block"></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ WORKERS PANEL ═══════════════ -->
+      <div class="panel" id="panel-workers">
+        <div class="flex-between">
+          <div><h1 class="section-title">Workers</h1><p class="section-sub">Manage factory personnel</p></div>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-primary">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path d="M12 4v16m8-8H4"/></svg>
+              Add Worker
+            </button>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Work Place</th><th>Attendance</th><th>Status</th><th style="text-align:right">Actions</th></tr></thead>
+              <tbody id="workersTableBody">
+                <tr><td colspan="7" class="empty-state"><div class="spinner" style="margin:0 auto;display:block"></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════ REPORTS PANEL ═══════════════ -->
+      <div class="panel" id="panel-reports">
+        <div><h1 class="section-title">Reports</h1><p class="section-sub">Fleet analytics</p></div>
+        
+        <div class="pill-bar" id="reportTabs">
+          <div class="pill active" data-rtab="overview">Overview</div>
+          <div class="pill" data-rtab="repairs">Repairs</div>
+          <div class="pill" data-rtab="purchases">Purchases</div>
+          <div class="pill" data-rtab="scrapped">Scrapped</div>
+        </div>
+
+        <!-- Overview Sub-tab -->
+        <div id="rtab-overview" style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+          <div class="chart-card"><div class="chart-header"><span class="chart-title">Status distribution</span></div><canvas id="statusPie" height="200"></canvas></div>
+          <div class="chart-card"><div class="chart-header"><span class="chart-title">Maintenance by result</span></div><canvas id="resultBar" height="200"></canvas></div>
+        </div>
+
+        <!-- Repairs Sub-tab -->
+        <div id="rtab-repairs" style="display:none; flex-direction:column; gap:16px">
+          <div class="flex-between">
+            <span class="chart-title">Machines In Repair</span>
+            <button class="btn btn-primary btn-sm" onclick="showMtModal()">Log Repair</button>
+          </div>
+          <div class="table-card"><div class="table-wrap">
+            <table>
+              <thead><tr><th>Equipment</th><th>Type</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="rtabRepairsBody"></tbody>
+            </table>
+          </div></div>
+        </div>
+
+        <!-- Purchases Sub-tab -->
+        <div id="rtab-purchases" style="display:none; flex-direction:column; gap:16px">
+          <div class="flex-between">
+            <span class="chart-title">New Machine Purchases</span>
+            <button class="btn btn-primary btn-sm" onclick="showEqModal()">Buy Machine</button>
+          </div>
+          <div class="table-card"><div class="table-wrap">
+            <table>
+              <thead><tr><th>Equipment</th><th>Type</th><th>Location</th><th>Purchased Date</th><th>Actions</th></tr></thead>
+              <tbody id="rtabPurchasesBody"></tbody>
+            </table>
+          </div></div>
+        </div>
+
+        <!-- Scrapped Sub-tab -->
+        <div id="rtab-scrapped" style="display:none; flex-direction:column; gap:16px">
+          <div class="flex-between">
+            <span class="chart-title">Scrapped Machines</span>
+          </div>
+          <div class="table-card"><div class="table-wrap">
+            <table>
+              <thead><tr><th>Equipment</th><th>Type</th><th>Location</th><th>Status</th><th>Actions</th></tr></thead>
+              <tbody id="rtabScrappedBody"></tbody>
+            </table>
+          </div></div>
+        </div>
+
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<script type="module">
+import { api } from '../js/api.js';
+import { toast, statusBadge, resultBadge, openModal, closeModal, getUser, logout, trunc } from '../js/ui.js';
+
+// ── Auth guard ────────────────────────────────────────────────────────
+const user = getUser();
+if (!user || user.role !== 'ADMIN') { window.location.href = '../index.html'; }
+document.getElementById('sidebarName').textContent = user?.name || 'Admin';
+document.getElementById('sidebarAvatar').textContent = (user?.name?.[0] || 'A').toUpperCase();
+document.getElementById('logoutBtn').addEventListener('click', logout);
+
+// ── State ─────────────────────────────────────────────────────────────
+let equipment = [], maintenance = [], workers = [], currentResultFilter = 'ALL';
+let trendChartInst, statusPieInst, resultBarInst;
+
+// ── Panel navigation ─────────────────────────────────────────────────
+document.querySelectorAll('[data-panel]').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const target = link.dataset.panel;
+    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.getElementById(`panel-${target}`)?.classList.add('active');
+    if (target === 'equipment')   renderEquipment();
+    if (target === 'maintenance') renderMaintenance();
+    if (target === 'reports')     renderReports();
+    if (target === 'workers')     renderWorkers();
+  });
+});
+
+
+// ── Load all data ────────────────────────────────────────────────────
+async function loadAll() {
+  try {
+    const [eqRes, mtRes, usrRes] = await Promise.all([api.equipmentList(), api.maintenanceList(), api.usersList()]);
+    equipment   = eqRes.data  || [];
+    maintenance = mtRes.data  || [];
+    workers     = usrRes.data || [];
+    renderDashboard();
+    renderWorkers(); // ensure workers panel gets prepopulated
+    renderNotifications();
+  } catch (err) { toast(err.message, 'error'); }
+}
+loadAll();
+
+// ── Notifications & Approvals ─────────────────────────────────────────
+function renderNotifications() {
+  const escalated = maintenance.filter(m => m.result === 'ESCALATED');
+  const dot = document.getElementById('notifDot');
+  if (dot) dot.style.display = escalated.length ? 'block' : 'none';
+}
+
+document.getElementById('notifBtn')?.addEventListener('click', () => {
+  const escalated = maintenance.filter(m => m.result === 'ESCALATED');
+  if (!escalated.length) {
+    toast('No pending escalated issues.');
+    return;
+  }
+  openModal({
+    title: 'Escalated Issues Pending Approval',
+    body: `
+      <div style="max-height: 350px; overflow-y: auto;">
+        ${escalated.map(m => `
+          <div style="background:var(--bg-800); border:1px solid var(--border); border-radius:12px; padding:14px; margin-bottom:12px">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start">
+              <div>
+                <strong style="color:var(--txt-1)">${m.equipment_name || 'Machine'}</strong>
+                <div style="font-size:12px; color:var(--txt-3); margin-top:4px">Reported by: ${m.technician_name || 'Unassigned'}</div>
+              </div>
+              <span class="badge badge-escalated" style="font-size:10px">ESCALATED</span>
+            </div>
+            <p style="font-size:13px; color:var(--txt-2); margin-top:10px; line-height:1.5">${m.description}</p>
+            <div style="margin-top:14px; display:flex; gap:8px">
+              <button class="btn btn-primary btn-sm" onclick="approveIssue('${m.id}', '${m.equipment_id}')">Approve & Update Status</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `
+  });
+});
+
+window.approveIssue = (maintenanceId, eqId) => {
+  const eq = equipment.find(e => e.id === eqId);
+  openModal({
+    title: 'Approve Issue & Update Equipment',
+    body: `
+      <p style="font-size:13px; color:var(--txt-2); margin-bottom:16px">
+        Update the status for <strong style="color:var(--txt-1)">${eq?.name || 'Equipment'}</strong> based on this reported problem.
+      </p>
+      <div class="field">
+        <label>New Equipment Status</label>
+        <select id="approveStatus" class="select">
+          <option value="IN_REPAIR">In Repair</option>
+          <option value="WARNING">Warning</option>
+          <option value="CRITICAL">Critical</option>
+          <option value="SCRAPPED">Scrapped</option>
+        </select>
+      </div>
+      <div id="approveErr"></div>
+    `,
+    footer: `
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" id="confirmApproveBtn">Approve & Save</button>
+    `
+  });
+
+  document.getElementById('confirmApproveBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('confirmApproveBtn');
+    const newStatus = document.getElementById('approveStatus').value;
+    btn.innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>'; 
+    btn.disabled = true;
+
+    try {
+      await api.equipmentUpdate(eqId, { status: newStatus });
+      await api.maintenanceUpdate(maintenanceId, { result: 'PENDING' });
+      await loadAll();
+      if (document.getElementById('panel-maintenance').classList.contains('active')) renderMaintenance();
+      if (document.getElementById('panel-equipment').classList.contains('active')) renderEquipment();
+      closeModal();
+      toast('Issue approved and equipment status updated.');
+    } catch(e) {
+      document.getElementById('approveErr').innerHTML = `<div class="error-msg">${e.message}</div>`;
+      btn.innerHTML = 'Approve & Save'; 
+      btn.disabled = false;
+    }
+  });
+};
+
+// ── Dashboard ────────────────────────────────────────────────────────
+function renderDashboard() {
+  const counts = {};
+  equipment.forEach(e => { counts[e.status] = (counts[e.status]||0)+1; });
+  const pending = maintenance.filter(m => m.result==='PENDING');
+
+  const kpis = [
+    { label:'Total Equipment',  value: equipment.length,        color:null },
+    { label:'Optimal',          value: counts.OPTIMAL||0,       color:'var(--optimal)' },
+    { label:'Needs Attention',  value: (counts.WARNING||0)+(counts.CRITICAL||0), color:'var(--warning)' },
+    { label:'In Repair',        value: counts.IN_REPAIR||0,     color:'var(--repair)' },
+    { label:'Pending Jobs',     value: pending.length,          color:'var(--accent)' },
+  ];
+  document.getElementById('kpiGrid').innerHTML = kpis.map((k,i) => `
+    <div class="kpi-card" style="animation-delay:${i*55}ms; ${k.color ? 'border-top:2px solid '+k.color : ''}">
+      ${k.color ? `<div class="kpi-top-bar" style="background:${k.color}"></div>` : ''}
+      <div class="kpi-label">${k.label}</div>
+      <div class="kpi-value" style="${k.color ? 'color:'+k.color : ''}">${k.value}</div>
+    </div>`).join('');
+
+  // Trend chart (mock weekly data based on current counts)
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const base = { o: counts.OPTIMAL||0, w: counts.WARNING||0, c: counts.CRITICAL||0 };
+  const trendData = {
+    labels: days,
+    datasets:[
+      { label:'Optimal', data: days.map((_,i)=>Math.max(0,base.o+Math.round((Math.random()-.5)*3))), borderColor:'#10b981', backgroundColor:'rgba(16,185,129,.08)', fill:true, tension:.4, pointRadius:3 },
+      { label:'Warning', data: days.map((_,i)=>Math.max(0,base.w+Math.round((Math.random()-.5)*2))), borderColor:'#f59e0b', backgroundColor:'rgba(245,158,11,.08)', fill:true, tension:.4, pointRadius:3 },
+      { label:'Critical',data: days.map((_,i)=>Math.max(0,base.c+Math.round((Math.random()-.5)*1))), borderColor:'#ef4444', backgroundColor:'rgba(239,68,68,.08)',  fill:true, tension:.4, pointRadius:3 },
+    ]
+  };
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  if (trendChartInst) trendChartInst.destroy();
+  trendChartInst = new Chart(ctx, { type:'line', data:trendData, options:{
+    responsive:true, plugins:{ legend:{display:false} },
+    scales:{
+      x:{ grid:{color:'rgba(148,163,184,.06)'}, ticks:{color:'#64748b',font:{size:11}} },
+      y:{ grid:{color:'rgba(148,163,184,.06)'}, ticks:{color:'#64748b',font:{size:11}}, beginAtZero:true }
+    }
+  }});
+
+  // Pending list
+  document.getElementById('pendingList').innerHTML = pending.length
+    ? pending.slice(0,6).map(m=>`
+        <div class="pending-item">
+          <div style="flex:1">
+            <div class="pending-name">${m.equipment_name||'Unknown'}</div>
+            <div class="pending-desc">${trunc(m.description,45)}</div>
+          </div>
+          <span class="pending-date">${(m.scheduled_date||'').slice(0,10)}</span>
+        </div>`).join('')
+    : '<p class="empty-state">No pending jobs</p>';
+
+  // Dash table
+  document.getElementById('dashTable').innerHTML = equipment.length
+    ? equipment.map(eq=>`
+        <tr class="anim-fade-up">
+          <td class="strong">${eq.name}</td>
+          <td>${eq.type||'—'}</td>
+          <td>${eq.location||'—'}</td>
+          <td>${statusBadge(eq.status)}</td>
+          <td class="mono">${(eq.created_at||'').slice(0,10)}</td>
+        </tr>`).join('')
+    : '<tr><td colspan="5" class="empty-state">No equipment found</td></tr>';
+}
+
+// ── Equipment CRUD ────────────────────────────────────────────────────
+function renderEquipment(filterTxt='') {
+  const filtered = equipment.filter(e =>
+    !filterTxt ||
+    e.name.toLowerCase().includes(filterTxt) ||
+    (e.type||'').toLowerCase().includes(filterTxt) ||
+    (e.location||'').toLowerCase().includes(filterTxt)
+  );
+  document.getElementById('eqCount').textContent = `${filtered.length} machines`;
+  document.getElementById('eqTableBody').innerHTML = filtered.length
+    ? filtered.map((eq,i)=>`
+        <tr class="anim-fade-up" style="animation-delay:${i*20}ms">
+          <td class="strong">${eq.name}</td>
+          <td>${eq.type||'—'}</td>
+          <td>${eq.location||'—'}</td>
+          <td>${statusBadge(eq.status)}</td>
+          <td class="mono">${(eq.created_at||'').slice(0,10)}</td>
+          <td>
+            <div class="action-row" style="justify-content:flex-end">
+              <button class="btn btn-icon btn-sm" onclick="editEquipment('${eq.id}')" title="Edit">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="deleteEquipment('${eq.id}','${eq.name}')" title="Scrap">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>`).join('')
+    : `<tr><td colspan="6" class="empty-state">${filterTxt?'No matches':'No equipment yet'}</td></tr>`;
+}
+
+document.getElementById('eqFilter').addEventListener('input', e => renderEquipment(e.target.value.toLowerCase()));
+document.getElementById('eqRefreshBtn').addEventListener('click', async () => { await loadAll(); renderEquipment(); });
+
+document.getElementById('addEqBtn').addEventListener('click', () => showEqModal());
+window.editEquipment = (id) => { const eq = equipment.find(e=>e.id===id); if(eq) showEqModal(eq); };
+window.deleteEquipment = (id, name) => {
+  openModal({
+    title:'Scrap Equipment',
+    body:`<p style="color:var(--txt-2);font-size:14px;line-height:1.7">Mark <strong style="color:var(--txt-1)">${name}</strong> as <strong style="color:var(--critical)">SCRAPPED</strong>? Its maintenance history is preserved.</p>
+          <div id="delErr"></div>`,
+    footer:`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-danger" id="confirmDelBtn">Confirm Scrap</button>`
+  });
+  document.getElementById('confirmDelBtn').addEventListener('click', async () => {
+    document.getElementById('confirmDelBtn').innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>';
+    try { await api.equipmentDelete(id); await loadAll(); renderEquipment(); closeModal(); toast(`${name} scrapped`); }
+    catch(e){ document.getElementById('delErr').innerHTML=`<div class="error-msg" style="margin-top:10px">${e.message}</div>`; }
+  });
+};
+
+function showEqModal(eq = null) {
+  const isEdit = !!eq;
+  openModal({
+    title: isEdit ? `Edit: ${eq.name}` : 'Add Equipment',
+    body:`
+      <div class="field"><label>Name *</label><input id="mName" class="input" value="${eq?.name||''}" placeholder="e.g. CNC-Alpha"/></div>
+      <div class="field"><label>Type</label><input id="mType" class="input" value="${eq?.type||''}" placeholder="e.g. CNC Machine"/></div>
+      <div class="field"><label>Location</label><input id="mLoc" class="input" value="${eq?.location||''}" placeholder="e.g. Zone A, Hall 2"/></div>
+      <div class="field"><label>Status</label>
+        <select id="mStatus" class="select">
+          ${['OPTIMAL','WARNING','CRITICAL','IN_REPAIR','SCRAPPED'].map(s=>`<option ${eq?.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div id="eqModalErr"></div>`,
+    footer:`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" id="saveEqBtn">${isEdit?'Save changes':'Create'}</button>`
+  });
+  document.getElementById('saveEqBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('saveEqBtn');
+    const name = document.getElementById('mName').value.trim();
+    if (!name) { document.getElementById('eqModalErr').innerHTML='<div class="error-msg">Name is required</div>'; return; }
+    btn.innerHTML='<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>'; btn.disabled=true;
+    const body = { name, type:document.getElementById('mType').value, location:document.getElementById('mLoc').value, status:document.getElementById('mStatus').value };
+    try {
+      if (isEdit) await api.equipmentUpdate(eq.id, body);
+      else await api.equipmentCreate(body);
+      await loadAll(); renderEquipment(); closeModal();
+      toast(isEdit ? 'Equipment updated' : 'Equipment created');
+    } catch(e) {
+      document.getElementById('eqModalErr').innerHTML=`<div class="error-msg">${e.message}</div>`;
+      btn.innerHTML=isEdit?'Save changes':'Create'; btn.disabled=false;
+    }
+  });
+}
+
+// ── Maintenance ────────────────────────────────────────────────────────
+function renderMaintenance() {
+  const filtered = currentResultFilter==='ALL' ? maintenance : maintenance.filter(m=>m.result===currentResultFilter);
+  document.getElementById('mtCount').textContent = `${filtered.length} records`;
+  document.getElementById('mtTableBody').innerHTML = filtered.length
+    ? filtered.map((m,i)=>`
+        <tr class="anim-fade-up" style="animation-delay:${i*18}ms">
+          <td class="strong">${m.equipment_name||'—'}</td>
+          <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${m.description}</td>
+          <td class="mono">${(m.scheduled_date||'').slice(0,10)}</td>
+          <td>${m.technician_name||'<span style="color:var(--txt-3)">Unassigned</span>'}</td>
+          <td>${resultBadge(m.result)}</td>
+          <td><div class="action-row" style="justify-content:flex-end">
+            <button class="btn btn-icon btn-sm" onclick="editMaintenance('${m.id}')" title="Edit">
+              <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+          </div></td>
+        </tr>`).join('')
+    : `<tr><td colspan="6" class="empty-state">No records${currentResultFilter!=='ALL'?' for '+currentResultFilter:''}</td></tr>`;
+}
+
+document.getElementById('mtRefreshBtn').addEventListener('click', async () => { await loadAll(); renderMaintenance(); });
+document.getElementById('resultFilter').addEventListener('click', e => {
+  const pill = e.target.closest('.pill');
+  if (!pill) return;
+  document.querySelectorAll('#resultFilter .pill').forEach(p=>p.classList.remove('active'));
+  pill.classList.add('active');
+  currentResultFilter = pill.dataset.filter;
+  renderMaintenance();
+});
+
+document.getElementById('addMtBtn').addEventListener('click', () => showMtModal());
+window.editMaintenance = (id) => { const r = maintenance.find(m=>m.id===id); if(r) showMtModal(r); };
+
+function showMtModal(rec = null) {
+  const isEdit = !!rec;
+  const today = new Date().toISOString().split('T')[0];
+  openModal({
+    title: isEdit ? 'Update Maintenance' : 'Log Maintenance',
+    body:`
+      <div class="field"><label>Equipment *</label>
+        <select id="mEqId" class="select">
+          <option value="">Select equipment…</option>
+          ${equipment.map(e=>`<option value="${e.id}" ${rec?.equipment_id===e.id?'selected':''}>${e.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Worker</label>
+        <select id="mTechId" class="select">
+          <option value="">Unassigned</option>
+          ${workers.map(w=>`<option value="${w.id}" ${rec?.technician_id===w.id?'selected':''}>${w.name}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label>Description *</label>
+        <textarea id="mDesc" class="textarea" placeholder="Describe the maintenance task…">${rec?.description||''}</textarea>
+      </div>
+      <div class="field"><label>Scheduled Date</label>
+        <input id="mDate" class="input" type="date" value="${(rec?.scheduled_date||today).slice(0,10)}"/>
+      </div>
+      <div class="field"><label>Result</label>
+        <select id="mResult" class="select">
+          ${['PENDING','DONE','ESCALATED'].map(r=>`<option ${(rec?.result||'PENDING')===r?'selected':''}>${r}</option>`).join('')}
+        </select>
+      </div>
+      <div id="mtModalErr"></div>`,
+    footer:`<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+            <button class="btn btn-primary" id="saveMtBtn">${isEdit?'Update':'Save Record'}</button>`
+  });
+  document.getElementById('saveMtBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('saveMtBtn');
+    const eqId = document.getElementById('mEqId').value;
+    const techId = document.getElementById('mTechId').value || null;
+    const desc = document.getElementById('mDesc').value.trim();
+    const errEl = document.getElementById('mtModalErr');
+    if (!eqId) { errEl.innerHTML='<div class="error-msg">Select equipment</div>'; return; }
+    if (!desc) { errEl.innerHTML='<div class="error-msg">Description is required</div>'; return; }
+    btn.innerHTML='<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>'; btn.disabled=true;
+    const body = { equipment_id:eqId, technician_id:techId, description:desc, scheduled_date:document.getElementById('mDate').value, result:document.getElementById('mResult').value };
+    try {
+      if (isEdit) await api.maintenanceUpdate(rec.id, body);
+      else await api.maintenanceCreate(body);
+      await loadAll(); renderMaintenance(); closeModal();
+      toast(isEdit?'Record updated':'Maintenance logged');
+    } catch(e) {
+      errEl.innerHTML=`<div class="error-msg">${e.message}</div>`;
+      btn.innerHTML=isEdit?'Update':'Save Record'; btn.disabled=false;
+    }
+  });
+}
+
+// ── Workers ────────────────────────────────────────────────────────────
+function renderWorkers() {
+  document.getElementById('workersTableBody').innerHTML = workers.length
+    ? workers.map((w,i)=>`
+        <tr class="anim-fade-up" style="animation-delay:${i*15}ms">
+          <td class="strong">${w.name}</td>
+          <td>${w.email}</td>
+          <td><span style="font-size:11px;font-weight:600;color:var(--txt-3);letter-spacing:0.05em">${w.role}</span></td>
+          <td>${w.work_place || 'Unassigned'}</td>
+          <td class="mono">${w.leave_taken !== undefined ? w.leave_taken : 0} / ${w.leave_allocated || 0}</td>
+          <td><span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--txt-2)"><div style="width:6px;height:6px;border-radius:50%;background:var(--optimal)"></div>Active</span></td>
+          <td>
+            <div class="action-row" style="justify-content:flex-end">
+              <button class="btn btn-icon btn-sm" onclick="editWorker('${w.id}')" title="Edit">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </button>
+              <button class="btn btn-danger btn-sm" onclick="deleteWorker('${w.id}','${w.name}')" title="Delete">
+                <svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+              </button>
+            </div>
+          </td>
+        </tr>`).join('')
+    : '<tr><td colspan="7" class="empty-state">No workers found</td></tr>';
+}
+
+window.editWorker = (id) => {
+  const w = workers.find(w => w.id === id);
+  if(w) showWorkerModal(w);
+};
+
+window.deleteWorker = (id, name) => {
+  openModal({
+    title: 'Delete Worker',
+    body: `<p style="color:var(--txt-2);font-size:14px;line-height:1.7">Are you sure you want to delete <strong style="color:var(--txt-1)">${name}</strong> completely?</p><div id="wDelErr"></div>`,
+    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+             <button class="btn btn-danger" id="confirmWDelBtn">Confirm Delete</button>`
+  });
+  document.getElementById('confirmWDelBtn').addEventListener('click', async () => {
+    document.getElementById('confirmWDelBtn').innerHTML = '<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>';
+    try { await api.workerDelete(id); await loadAll(); renderWorkers(); closeModal(); toast('Worker deleted'); }
+    catch(e){ document.getElementById('wDelErr').innerHTML = `<div class="error-msg" style="margin-top:10px">${e.message}</div>`; }
+  });
+};
+
+document.querySelector('#panel-workers .btn-primary').addEventListener('click', () => showWorkerModal());
+
+function showWorkerModal(worker = null) {
+  const isEdit = !!worker;
+  openModal({
+    title: isEdit ? 'Edit Worker' : 'Add Worker',
+    body: `
+      <div class="field"><label>Name *</label><input id="wName" class="input" value="${worker?.name || ''}" placeholder="e.g. John Doe" ${isEdit ? 'disabled' : ''}/></div>
+      <div class="field"><label>Email *</label><input id="wEmail" type="email" class="input" value="${worker?.email || ''}" placeholder="e.g. john@factory.io"/></div>
+      <div class="field"><label>Role *</label>
+        <select id="wRole" class="select" ${isEdit ? 'disabled' : ''}>
+          <option value="TECHNICIAN" ${worker?.role === 'TECHNICIAN' ? 'selected' : ''}>Technician</option>
+          <option value="OPERATOR" ${worker?.role === 'OPERATOR' ? 'selected' : ''}>Operator</option>
+          <option value="MANAGER" ${worker?.role === 'MANAGER' ? 'selected' : ''}>Manager</option>
+        </select>
+      </div>
+      <div class="field"><label>Work Place</label>
+        <select id="wZone" class="select">
+           <option value="zoneA" ${worker?.work_place === 'zoneA' ? 'selected' : ''}>Zone A</option>
+           <option value="zoneB" ${worker?.work_place === 'zoneB' ? 'selected' : ''}>Zone B</option>
+           <option value="zoneC" ${worker?.work_place === 'zoneC' ? 'selected' : ''}>Zone C</option>
+        </select>
+      </div>
+      <div class="field" style="display:flex; gap:10px;">
+        <div style="flex:1;"><label>Days Absent</label><input id="wAbsent" type="number" class="input" value="${worker?.leave_taken !== undefined ? worker.leave_taken : 0}" min="0"/></div>
+        <div style="flex:1;"><label>Days Allocated</label><input id="wAllocated" type="number" class="input" value="${worker?.leave_allocated !== undefined ? worker.leave_allocated : 5}" min="0"/></div>
+      </div>
+      ${!isEdit ? `<p style="font-size:12px;color:var(--txt-3);margin-top:-5px;margin-bottom:15px">New workers will login with password: <code style="font-size:11px">tech123</code></p>` : ''}
+      <div id="wModalErr"></div>
+    `,
+    footer: `<button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+             <button class="btn btn-primary" id="saveWorkerBtn">${isEdit ? 'Save Changes' : 'Add Worker'}</button>`
+  });
+
+  document.getElementById('saveWorkerBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('saveWorkerBtn');
+    const name = document.getElementById('wName').value.trim();
+    const email = document.getElementById('wEmail').value.trim();
+    const role = document.getElementById('wRole').value;
+    const work_place = document.getElementById('wZone').value;
+    const leave_taken = parseInt(document.getElementById('wAbsent').value) || 0;
+    const leave_allocated = parseInt(document.getElementById('wAllocated').value) || 0;
+    const errEl = document.getElementById('wModalErr');
+
+    if (!isEdit && (!name || !email)) { errEl.innerHTML='<div class="error-msg">Name and email are required</div>'; return; }
+    btn.innerHTML='<div class="spinner" style="width:14px;height:14px;border-width:2px"></div>'; btn.disabled=true;
+
+    try {
+      if (isEdit) {
+        await api.workerUpdate(worker.id, { email, work_place, leave_taken, leave_allocated });
+      } else {
+        await api.workerCreate({ name, email, role, work_place, leave_taken, leave_allocated });
+      }
+      await loadAll(); // Re-fetch users, eq, and mt to update UI dropdowns and tables
+      renderWorkers();
+      closeModal();
+      toast(isEdit ? 'Worker updated successfully!' : 'Worker added successfully!');
+    } catch(e) {
+      errEl.innerHTML=`<div class="error-msg">${e.message}</div>`;
+      btn.innerHTML=isEdit ? 'Save Changes' : 'Add Worker'; btn.disabled=false;
+    }
+  });
+}
+
+// ── Reports ────────────────────────────────────────────────────────────
+let currentReportTab = 'overview';
+
+document.getElementById('reportTabs').addEventListener('click', e => {
+  const pill = e.target.closest('.pill');
+  if (!pill) return;
+  document.querySelectorAll('#reportTabs .pill').forEach(p => p.classList.remove('active'));
+  pill.classList.add('active');
+  currentReportTab = pill.dataset.rtab;
+  
+  // Hide all sub-tabs
+  document.getElementById('rtab-overview').style.display = 'none';
+  document.getElementById('rtab-repairs').style.display = 'none';
+  document.getElementById('rtab-purchases').style.display = 'none';
+  document.getElementById('rtab-scrapped').style.display = 'none';
+  
+  // Show target
+  document.getElementById(`rtab-${currentReportTab}`).style.display = currentReportTab === 'overview' ? 'grid' : 'flex';
+});
+
+function renderReports() {
+  const counts = {};
+  equipment.forEach(e=>{ counts[e.status]=(counts[e.status]||0)+1; });
+  const resultCounts = { PENDING:0, DONE:0, ESCALATED:0 };
+  maintenance.forEach(m=>{ resultCounts[m.result]=(resultCounts[m.result]||0)+1; });
+
+  // Status pie
+  const pieCtx = document.getElementById('statusPie').getContext('2d');
+  if (statusPieInst) statusPieInst.destroy();
+  statusPieInst = new Chart(pieCtx, { type:'doughnut', data:{
+    labels: Object.keys(counts),
+    datasets:[{ data:Object.values(counts), backgroundColor:['#10b981','#f59e0b','#ef4444','#8b5cf6','#64748b'], borderWidth:0, hoverOffset:4 }]
+  }, options:{ responsive:true, plugins:{ legend:{ labels:{color:'#94a3b8',font:{size:12}} } } }});
+
+  // Result bar
+  const barCtx = document.getElementById('resultBar').getContext('2d');
+  if (resultBarInst) resultBarInst.destroy();
+  resultBarInst = new Chart(barCtx, { type:'bar', data:{
+    labels:['Pending','Done','Escalated'],
+    datasets:[{ data:[resultCounts.PENDING,resultCounts.DONE,resultCounts.ESCALATED], backgroundColor:['rgba(245,158,11,.7)','rgba(16,185,129,.7)','rgba(239,68,68,.7)'], borderRadius:6, borderWidth:0 }]
+  }, options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{
+    x:{ grid:{color:'rgba(148,163,184,.06)'}, ticks:{color:'#64748b'} },
+    y:{ grid:{color:'rgba(148,163,184,.06)'}, ticks:{color:'#64748b'}, beginAtZero:true }
+  }}});
+
+  // Render Repairs Table
+  const repairs = equipment.filter(e => e.status === 'IN_REPAIR');
+  document.getElementById('rtabRepairsBody').innerHTML = repairs.length ? repairs.map(e => `
+    <tr>
+      <td class="strong">${e.name}</td>
+      <td>${e.type || '—'}</td>
+      <td>${e.location || '—'}</td>
+      <td>${statusBadge(e.status)}</td>
+      <td><button class="btn btn-icon btn-sm" onclick="editEquipment('${e.id}')" title="Edit Repair Status"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="empty-state">No machines currently in repair</td></tr>';
+
+  // Render Purchases Table (show all non-scrapped machines ordered by creation date, top 50)
+  const purchases = equipment.filter(e => e.status !== 'SCRAPPED').sort((a,b) => new Date(b.created_at) - new Date(a.created_at)).slice(0, 50);
+  document.getElementById('rtabPurchasesBody').innerHTML = purchases.length ? purchases.map(e => `
+    <tr>
+      <td class="strong">${e.name}</td>
+      <td>${e.type || '—'}</td>
+      <td>${e.location || '—'}</td>
+      <td class="mono">${(e.created_at || '').slice(0, 10)}</td>
+      <td>
+        <button class="btn btn-icon btn-sm" onclick="editEquipment('${e.id}')" title="Edit Machine"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button>
+        <button class="btn btn-danger btn-sm" onclick="deleteEquipment('${e.id}','${e.name}')" title="Scrap"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
+      </td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="empty-state">No active machines found</td></tr>';
+
+  // Render Scrapped Table
+  const scrapped = equipment.filter(e => e.status === 'SCRAPPED');
+  document.getElementById('rtabScrappedBody').innerHTML = scrapped.length ? scrapped.map(e => `
+    <tr>
+      <td class="strong" style="color:var(--txt-3);text-decoration:line-through">${e.name}</td>
+      <td>${e.type || '—'}</td>
+      <td>${e.location || '—'}</td>
+      <td>${statusBadge(e.status)}</td>
+      <td><button class="btn btn-icon btn-sm" onclick="editEquipment('${e.id}')" title="Restore/Edit"><svg width="13" height="13" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></td>
+    </tr>
+  `).join('') : '<tr><td colspan="5" class="empty-state">No machines have been scrapped</td></tr>';
+}
+</script>
+</body>
+</html>

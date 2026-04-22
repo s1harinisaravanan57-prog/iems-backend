@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: iems-backend
+    runtime: node
+    region: oregon
+    plan: free
+    buildCommand: npm ci
+    startCommand: node src/server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+
+databases:
+  - name: iems-db
+    databaseName: iems_db
+    user: postgres
+    region: oregon
+    plan: free
